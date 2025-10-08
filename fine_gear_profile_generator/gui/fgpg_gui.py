@@ -9,18 +9,49 @@ except ImportError:
     PIL_AVAILABLE = False
 
 # Import the refactored modules
-from ..core import gear_math, geometry_generator
+from ..core import gear_core
 from ..io import dxf_exporter, image_exporter
 from ..utils import config_manager
+
+SPEC_FIELDS = [
+    ("module_m", "Module, m", "[mm], (>0)"),
+    ("teeth_number_z", "Teeth Number, z1", "[ea], (+/-)"),
+    ("pressure_angle_alpha", "Pressure Angle, alpha", "[deg]"),
+    ("offset_factor_x", "Offset Factor, x1", "(-1~+1)"),
+    ("backlash_factor_b", "Backlash Factor, b", "(0~1)"),
+    ("addendum_factor_a", "Addendum Factor, a", "(0~1)"),
+    ("dedendum_factor_d", "Dedendum Factor, d", "(0~1)"),
+    ("hob_edge_radius_c", "Hob Edge Radius, c", ""),
+    ("tooth_edge_radius_e", "Tooth Edge Radius, e", "")
+]
+
+MATING_FIELDS = [
+    ("teeth_number_z2", "Teeth Number, z2", "[ea]"),
+    ("offset_factor_x2", "Offset Factor, x2", "")
+]
+
+GRAPHIC_FIELDS = [
+    ("x_0", "Center, x_0", "[mm]"),
+    ("y_0", "Center, y_0", "[mm]"),
+    ("seg_involute", "Seg, involute", "[ea]"),
+    ("seg_edge_r", "Seg, edge_r", "[ea]"),
+    ("seg_root_r", "Seg, root_r", "[ea]"),
+    ("seg_outer", "Seg, outer", "[ea]"),
+    ("seg_root", "Seg, root", "[ea]")
+]
 
 class GearApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("FGPG - Fine Gear Profile Generator (Refactored)")
-        self.geometry("950x700")
+        self.config_data = config_manager.load_app_config()
+        self.defaults = config_manager.get_defaults(self.config_data)
+
+        window_config = self.config_data.get('window', {})
+        self.title(window_config.get('title', "FGPG - Fine Gear Profile Generator (Refactored)"))
+        self.geometry(window_config.get('geometry', "950x700"))
 
         self.vars = {}
-        self.current_image_path = "Result1.png"
+        self.current_image_path = self.defaults.get('current_image_path', "Result1.png")
         self.logo_image = None
         self.result_image = None
 
@@ -52,29 +83,16 @@ class GearApp(tk.Tk):
     def create_spec_widgets(self, parent):
         frame = ttk.LabelFrame(parent, text="1. Gear Spec (Gear 1)", padding="10")
         frame.grid(row=0, column=0, sticky="ew", pady=5)
-        specs = [
-            ("module_m", "Module, m", 1.0, "[mm], (>0)"),
-            ("teeth_number_z", "Teeth Number, z1", 18, "[ea], (+/-)"),
-            ("pressure_angle_alpha", "Pressure Angle, alpha", 20.0, "[deg]"),
-            ("offset_factor_x", "Offset Factor, x1", 0.2, "(-1~+1)"),
-            ("backlash_factor_b", "Backlash Factor, b", 0.05, "(0~1)"),
-            ("addendum_factor_a", "Addendum Factor, a", 1.0, "(0~1)"),
-            ("dedendum_factor_d", "Dedendum Factor, d", 1.25, "(0~1)"),
-            ("hob_edge_radius_c", "Hob Edge Radius, c", 0.2, ""),
-            ("tooth_edge_radius_e", "Tooth Edge Radius, e", 0.1, "")
-        ]
-        for i, (key, label, val, unit) in enumerate(specs):
-            self.create_entry(frame, i, key, label, val, unit)
+        for i, (key, label, unit) in enumerate(SPEC_FIELDS):
+            default_val = self.defaults.get(key)
+            self.create_entry(frame, i, key, label, default_val, unit)
 
     def create_mating_gear_widgets(self, parent):
         frame = ttk.LabelFrame(parent, text="1.5. Mating Gear Spec (Gear 2)", padding="10")
         frame.grid(row=1, column=0, sticky="ew", pady=5)
-        specs = [
-            ("teeth_number_z2", "Teeth Number, z2", 36, "[ea]"),
-            ("offset_factor_x2", "Offset Factor, x2", 0.0, ""),
-        ]
-        for i, (key, label, val, unit) in enumerate(specs):
-            self.create_entry(frame, i, key, label, val, unit)
+        for i, (key, label, unit) in enumerate(MATING_FIELDS):
+            default_val = self.defaults.get(key)
+            self.create_entry(frame, i, key, label, default_val, unit)
 
     def create_analysis_widgets(self, parent):
         frame = ttk.LabelFrame(parent, text="Analysis", padding="10")
@@ -89,23 +107,16 @@ class GearApp(tk.Tk):
     def create_graphics_widgets(self, parent):
         frame = ttk.LabelFrame(parent, text="2. Graphics & Misc.", padding="10")
         frame.grid(row=3, column=0, sticky="ew", pady=5)
-        graphics = [
-            ("x_0", "Center, x_0", 0.0, "[mm]"),
-            ("y_0", "Center, y_0", 0.0, "[mm]"),
-            ("seg_involute", "Seg, involute", 15, "[ea]"),
-            ("seg_edge_r", "Seg, edge_r", 15, "[ea]"),
-            ("seg_root_r", "Seg, root_r", 15, "[ea]"),
-            ("seg_outer", "Seg, outer", 5, "[ea]"),
-            ("seg_root", "Seg, root", 5, "[ea]"),
-        ]
-        for i, (key, label, val, unit) in enumerate(graphics):
-            self.create_entry(frame, i, key, label, val, unit)
+        for i, (key, label, unit) in enumerate(GRAPHIC_FIELDS):
+            default_val = self.defaults.get(key)
+            self.create_entry(frame, i, key, label, default_val, unit)
 
     def create_control_widgets(self, parent):
         dir_frame = ttk.Frame(parent)
         dir_frame.grid(row=0, column=0, sticky="ew", pady=5)
         ttk.Label(dir_frame, text="Working Directory:").grid(row=0, column=0, sticky="w")
-        self.vars['working_directory'] = tk.StringVar(value="./result/")
+        default_working_dir = self.defaults.get('working_directory', "./result/")
+        self.vars['working_directory'] = tk.StringVar(value=default_working_dir)
         ttk.Entry(dir_frame, textvariable=self.vars['working_directory'], width=40).grid(row=0, column=1, sticky="ew", padx=5)
         ttk.Button(dir_frame, text="Browse...", command=self.browse_dir).grid(row=0, column=2)
         dir_frame.columnconfigure(1, weight=1)
@@ -173,39 +184,38 @@ class GearApp(tk.Tk):
         os.makedirs(working_dir, exist_ok=True)
 
         try:
-            # --- Perform Calculations ---
-            contact_ratio, center_dist = gear_math.calculate_contact_ratio(
-                params['M'], params['Z'], params['z2'], params['X'], params['x2'], params['ALPHA'], params['A'])
+            result = gear_core.generate_gear_pair(params)
 
-            undercut_status1 = gear_math.check_undercut(params['Z'], params['ALPHA'], params['X'], params['A'])
-            undercut_status2 = gear_math.check_undercut(params['z2'], params['ALPHA'], params['X'], params['A'])
+            analysis = result['analysis']
+            gear1 = result['gear1']
+            gear2 = result['gear2']
 
-            # --- Generate Geometry ---
-            gear1_profile = geometry_generator.generate_tooth_profile(
-                params['M'], params['Z'], params['ALPHA'], params['X'], params['B'],
-                params['A'], params['D'], params['C'], params['E'],
-                params['SEG_INVOLUTE'], params['SEG_EDGE_R'], params['SEG_ROOT_R'],
-                params['SEG_OUTER'], params['SEG_ROOT'])
-
-            gear2_profile = geometry_generator.generate_tooth_profile(
-                params['M'], params['z2'], params['ALPHA'], params['x2'], params['B'],
-                params['A'], params['D'], params['C'], params['E'],
-                params['SEG_INVOLUTE'], params['SEG_EDGE_R'], params['SEG_ROOT_R'],
-                params['SEG_OUTER'], params['SEG_ROOT'])
-
-            # --- Export Files ---
             image_exporter.export_gear_pair_to_image(
-                working_dir, gear1_profile, gear2_profile, center_dist,
-                params['M'], params['Z'], params['z2'], params['X_0'], params['Y_0'])
+                working_dir,
+                gear1['profile'],
+                gear2['profile'],
+                analysis['center_distance'],
+                params['M'],
+                params['Z'],
+                params['z2'],
+                params['X_0'],
+                params['Y_0']
+            )
 
             dxf_exporter.export_gear_pair_to_dxf(
-                working_dir, gear1_profile, gear2_profile, center_dist,
-                params['X_0'], params['Y_0'])
+                working_dir,
+                gear1['profile'],
+                gear2['profile'],
+                analysis['center_distance'],
+                params['X_0'],
+                params['Y_0']
+            )
 
-            # --- Update UI ---
-            self.vars['contact_ratio'].set(f"{contact_ratio:.4f}")
-            self.vars['center_distance'].set(f"{center_dist:.4f} mm")
-            self.status_var.set(f"Run: OK. G1 Undercut: {undercut_status1}. G2 Undercut: {undercut_status2}")
+            self.vars['contact_ratio'].set(f"{analysis['contact_ratio']:.4f}")
+            self.vars['center_distance'].set(f"{analysis['center_distance']:.4f} mm")
+            self.status_var.set(
+                f"Run: OK. G1 Undercut: {gear1['undercut_status']}. G2 Undercut: {gear2['undercut_status']}"
+            )
             self.display_result_image()
 
         except Exception as e:

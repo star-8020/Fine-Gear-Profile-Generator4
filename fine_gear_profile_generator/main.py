@@ -8,7 +8,9 @@ import os
 # python -m fine_gear_profile_generator.main
 try:
     from .gui.fgpg_gui import GearApp
-    # In the future, headless mode would import from .core, .io, etc.
+    from .core import gear_core
+    from .io import dxf_exporter, image_exporter
+    from .utils import config_manager
 except ImportError:
     print("Error: Failed to import application modules.", file=sys.stderr)
     print("Please run this script as a module from the project's parent directory.", file=sys.stderr)
@@ -22,48 +24,40 @@ def run_headless_mode():
     """
     print("Running in headless mode with default parameters...")
 
-    # Default parameters, similar to the original script
-    params = {
-        'M': 1.0, 'Z': 18, 'ALPHA': 20.0, 'X': 0.2, 'B': 0.05, 'A': 1.0,
-        'D': 1.25, 'C': 0.2, 'E': 0.1, 'X_0': 0.0, 'Y_0': 0.0,
-        'SEG_INVOLUTE': 15, 'SEG_EDGE_R': 15, 'SEG_ROOT_R': 15,
-        'SEG_OUTER': 5, 'SEG_ROOT': 5,
-        'z2': 36, 'x2': 0.0
-    }
+    config_data = config_manager.load_app_config()
+    params = config_manager.get_default_calculation_params(config_data)
 
-    # Define the output directory relative to the project root
-    working_dir = os.path.join(os.path.dirname(__file__), 'result')
+    working_dir_default = config_manager.get_default_working_directory(config_data)
+    if os.path.isabs(working_dir_default):
+        working_dir = working_dir_default
+    else:
+        working_dir = os.path.join(os.path.dirname(__file__), working_dir_default)
     os.makedirs(working_dir, exist_ok=True)
 
     try:
-        from .core import gear_math, geometry_generator
-        from .io import dxf_exporter, image_exporter
+        result = gear_core.generate_gear_pair(params)
+        analysis = result['analysis']
 
-        # --- Perform Calculations ---
-        contact_ratio, center_dist = gear_math.calculate_contact_ratio(
-            params['M'], params['Z'], params['z2'], params['X'], params['x2'], params['ALPHA'], params['A'])
-
-        # --- Generate Geometry ---
-        gear1_profile = geometry_generator.generate_tooth_profile(
-            params['M'], params['Z'], params['ALPHA'], params['X'], params['B'],
-            params['A'], params['D'], params['C'], params['E'],
-            params['SEG_INVOLUTE'], params['SEG_EDGE_R'], params['SEG_ROOT_R'],
-            params['SEG_OUTER'], params['SEG_ROOT'])
-
-        gear2_profile = geometry_generator.generate_tooth_profile(
-            params['M'], params['z2'], params['ALPHA'], params['x2'], params['B'],
-            params['A'], params['D'], params['C'], params['E'],
-            params['SEG_INVOLUTE'], params['SEG_EDGE_R'], params['SEG_ROOT_R'],
-            params['SEG_OUTER'], params['SEG_ROOT'])
-
-        # --- Export Files ---
         image_exporter.export_gear_pair_to_image(
-            working_dir, gear1_profile, gear2_profile, center_dist,
-            params['M'], params['Z'], params['z2'], params['X_0'], params['Y_0'])
+            working_dir,
+            result['gear1']['profile'],
+            result['gear2']['profile'],
+            analysis['center_distance'],
+            params['M'],
+            params['Z'],
+            params['z2'],
+            params.get('X_0', 0.0),
+            params.get('Y_0', 0.0)
+        )
 
         dxf_exporter.export_gear_pair_to_dxf(
-            working_dir, gear1_profile, gear2_profile, center_dist,
-            params['X_0'], params['Y_0'])
+            working_dir,
+            result['gear1']['profile'],
+            result['gear2']['profile'],
+            analysis['center_distance'],
+            params.get('X_0', 0.0),
+            params.get('Y_0', 0.0)
+        )
 
         print(f"Headless run complete. Files saved in {working_dir}")
 
