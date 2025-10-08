@@ -1,5 +1,8 @@
 import numpy as np
 
+FULL_TURN = 2 * np.pi
+RIGHT_ANGLE = np.pi / 2
+
 def inv(alpha_rad):
     """Calculates the involute function (tan(a) - a)"""
     return np.tan(alpha_rad) - alpha_rad
@@ -76,8 +79,11 @@ def calculate_gear_parameters(M, Z, ALPHA, X, B, A, D, C, E):
     This function is complex and seems highly specific to the generating process.
     """
     ALPHA_0 = np.deg2rad(ALPHA)
-    ALPHA_M = np.pi / Z
-    ALPHA_IS = ALPHA_0 + np.pi / (2 * Z) + B / (Z * np.cos(ALPHA_0)) - (1 + 2 * X / Z) * np.sin(ALPHA_0) / np.cos(ALPHA_0)
+    TOOTH_CENTER_ANGLE = np.pi / Z
+    HALF_TOOTH_CENTER_ANGLE = TOOTH_CENTER_ANGLE / 2
+    PITCH_ANGLE = FULL_TURN / Z
+    ALPHA_M = TOOTH_CENTER_ANGLE
+    ALPHA_IS = ALPHA_0 + HALF_TOOTH_CENTER_ANGLE + B / (Z * np.cos(ALPHA_0)) - (1 + 2 * X / Z) * np.sin(ALPHA_0) / np.cos(ALPHA_0)
     THETA_IS = np.tan(ALPHA_0) + 2 * (C * (1 - np.sin(ALPHA_0)) + X - D) / (Z * np.cos(ALPHA_0) * np.sin(ALPHA_0))
 
     sqrt_val_ie = ((Z + 2 * (X + A - E)) / (Z * np.cos(ALPHA_0)))**2 - 1
@@ -96,7 +102,6 @@ def calculate_gear_parameters(M, Z, ALPHA, X, B, A, D, C, E):
             sqrt_val_e = 0
         E = (E / 2) * np.cos(ALPHA_0) * (THETA_IE - np.sqrt(sqrt_val_e))
 
-    P_ANGLE = 2 * np.pi / Z
-    ALIGN_ANGLE = np.pi / 2 - np.pi / Z
+    ALIGN_ANGLE = RIGHT_ANGLE - TOOTH_CENTER_ANGLE
 
-    return ALPHA_0, ALPHA_M, ALPHA_IS, THETA_IS, THETA_IE, ALPHA_E, E, P_ANGLE, ALIGN_ANGLE
+    return ALPHA_0, ALPHA_M, ALPHA_IS, THETA_IS, THETA_IE, ALPHA_E, E, PITCH_ANGLE, ALIGN_ANGLE
