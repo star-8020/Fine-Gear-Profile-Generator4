@@ -1,22 +1,31 @@
+"""Utilities for exporting gear pair previews as images."""
+
+from __future__ import annotations
+
 import os
+from typing import Tuple
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from ..core import transformations
 
-def export_gear_pair_to_image(working_dir, gear1_data, gear2_data, center_dist, m_val, z1_val, z2_val, x_offset=0.0, y_offset=0.0):
-    """
-    Generates and saves a PNG image preview of the gear pair.
+GearPlotTuple = Tuple[np.ndarray, np.ndarray, int, float, float]
 
-    Args:
-        working_dir (str): Directory to save the image.
-        gear1_data (tuple): (X_tooth, Y_tooth, Z, P_ANGLE, ALIGN_ANGLE) for gear 1.
-        gear2_data (tuple): (X_tooth, Y_tooth, Z, P_ANGLE, ALIGN_ANGLE) for gear 2.
-        center_dist (float): Distance between gear centers.
-        m_val (float): Module of the gears.
-        z1_val (int): Number of teeth for gear 1.
-        z2_val (int): Number of teeth for gear 2.
-        x_offset (float): X-coordinate of the center of the first gear.
-        y_offset (float): Y-coordinate of the center of the first gear.
-    """
+
+def export_gear_pair_to_image(
+    working_dir: str,
+    gear1_data: GearPlotTuple,
+    gear2_data: GearPlotTuple,
+    center_dist: float,
+    module_value: float,
+    gear1_teeth: int,
+    gear2_teeth: int,
+    x_offset: float = 0.0,
+    y_offset: float = 0.0,
+) -> None:
+    """Generate and save a PNG preview for the supplied gear pair."""
+
     if 'DISPLAY' not in os.environ and 'XDG_SESSION_TYPE' not in os.environ:
         plt.switch_backend('Agg')
 
@@ -26,33 +35,29 @@ def export_gear_pair_to_image(working_dir, gear1_data, gear2_data, center_dist, 
     ax.set_title('Fine Gear Profile Generator - Gear Pair Preview')
     ax.grid(True)
 
-    # --- Plot Gear 1 ---
-    X_tooth1, Y_tooth1, Z1, P_ANGLE1, ALIGN_ANGLE1 = gear1_data
-    X_rot1, Y_rot1 = transformations.rotate(X_tooth1, Y_tooth1, ALIGN_ANGLE1)
-    for i in range(int(Z1)):
-        X_temp, Y_temp = transformations.rotate(X_rot1, Y_rot1, P_ANGLE1 * i)
-        X_final, Y_final = transformations.translate(X_temp, Y_temp, x_offset, y_offset)
-        ax.plot(X_final, Y_final, '-', linewidth=1.5, color='blue')
+    x_tooth1, y_tooth1, z1, pitch_angle1, alignment_angle1 = gear1_data
+    x_rot1, y_rot1 = transformations.rotate(x_tooth1, y_tooth1, alignment_angle1)
+    for i in range(int(z1)):
+        x_temp, y_temp = transformations.rotate(x_rot1, y_rot1, pitch_angle1 * i)
+        x_final, y_final = transformations.translate(x_temp, y_temp, x_offset, y_offset)
+        ax.plot(x_final, y_final, '-', linewidth=1.5, color='blue')
 
-    # --- Plot Gear 2 ---
-    X_tooth2, Y_tooth2, Z2, P_ANGLE2, ALIGN_ANGLE2 = gear2_data
-    import numpy as np
-    initial_rotation2 = np.pi + (np.pi / Z2)
-    X_rot2, Y_rot2 = transformations.rotate(X_tooth2, Y_tooth2, ALIGN_ANGLE2 + initial_rotation2)
-    for i in range(int(Z2)):
-        X_temp, Y_temp = transformations.rotate(X_rot2, Y_rot2, P_ANGLE2 * i)
-        X_final, Y_final = transformations.translate(X_temp, Y_temp, x_offset + center_dist, y_offset)
-        ax.plot(X_final, Y_final, '-', linewidth=1.5, color='red')
+    x_tooth2, y_tooth2, z2, pitch_angle2, alignment_angle2 = gear2_data
+    initial_rotation2 = np.pi + (np.pi / z2)
+    x_rot2, y_rot2 = transformations.rotate(x_tooth2, y_tooth2, alignment_angle2 + initial_rotation2)
+    for i in range(int(z2)):
+        x_temp, y_temp = transformations.rotate(x_rot2, y_rot2, pitch_angle2 * i)
+        x_final, y_final = transformations.translate(x_temp, y_temp, x_offset + center_dist, y_offset)
+        ax.plot(x_final, y_final, '-', linewidth=1.5, color='red')
 
-    # Set plot limits for a good view
-    ax.set_xlim(-m_val * z1_val / 1.5, center_dist + m_val * z2_val / 1.5)
-    ax.set_ylim(-m_val * max(z1_val, z2_val) * 1.2, m_val * max(z1_val, z2_val) * 1.2)
+    ax.set_xlim(-module_value * gear1_teeth / 1.5, center_dist + module_value * gear2_teeth / 1.5)
+    max_teeth = max(gear1_teeth, gear2_teeth)
+    ax.set_ylim(-module_value * max_teeth * 1.2, module_value * max_teeth * 1.2)
 
-    # Save the figure
     output_path = os.path.join(working_dir, 'Result1.png')
     try:
         fig.savefig(output_path, dpi=100)
-    except Exception as e:
-        print(f"Error saving image: {e}")
+    except OSError as error:  # pragma: no cover - filesystem errors
+        print(f"Error saving image: {error}")
     finally:
-        plt.close(fig) # Ensure the figure is closed to free memory
+        plt.close(fig)
