@@ -353,10 +353,10 @@ def generate_tooth_profile(*args, **kwargs) -> Tuple[np.ndarray, np.ndarray, flo
             normalized[new_key] = kwargs[legacy_key]
         return _generate_tooth_profile_impl(**normalized)
 
-    expected_args = 13
+    expected_args = 14
     if len(args) != expected_args:
         raise TypeError(
-            "generate_tooth_profile() expects 13 positional arguments or legacy keyword arguments"
+            "generate_tooth_profile() expects 14 positional arguments or legacy keyword arguments"
         )
 
     return _generate_tooth_profile_impl(*args)
